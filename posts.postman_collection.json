@@ -1,0 +1,132 @@
+{
+	"info": {
+		"_postman_id": "258f398c-7a11-403b-92fe-000bbfe3da22",
+		"name": "posts",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19203615",
+		"_collection_link": "https://www.postman.com/martian-equinox-990957/workspace/posts/collection/19203615-258f398c-7a11-403b-92fe-000bbfe3da22?action=share&creator=19203615&source=collection_link"
+	},
+	"item": [
+		{
+			"name": "get posts",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/collections",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"collections"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Post",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\":\"Middle\",\r\n    \"content\":\"Middle test databest\",\r\n    \"published\":true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/collections",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"collections"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete /",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/collections/d4e7e9e1-c6ec-4fb9-945c-c7608aca73a4",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"collections",
+						"d4e7e9e1-c6ec-4fb9-945c-c7608aca73a4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Put",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\":\"Middle3\",\r\n    \"content\":\"Middle test database3\",\r\n    \"published\":true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/collections/559436da-d929-4164-95a9-6dc1494f12d5",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"collections",
+						"559436da-d929-4164-95a9-6dc1494f12d5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/collections/559436da-d929-4164-95a9-6dc1494f12d5",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"collections",
+						"559436da-d929-4164-95a9-6dc1494f12d5"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
