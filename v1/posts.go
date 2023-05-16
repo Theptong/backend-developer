@@ -21,12 +21,7 @@ type DBController struct {
 
 // GET
 func (db *DBController) GetCollection(c *gin.Context) {
-	// _type := c.Query("type")
 	_where := map[string]interface{}{}
-
-	// if _type != "" {
-	// 	_where["type"] = _type
-	// }
 	var posts []models.Posts
 	filter := make(map[string]interface{})
 	if c.Request.URL.Query().Get("limit") != "" {
@@ -35,8 +30,7 @@ func (db *DBController) GetCollection(c *gin.Context) {
 	if c.Request.URL.Query().Get("page") != "" {
 		filter["page"] = c.Request.URL.Query().Get("page")
 	}
-	fmt.Println("filter[limit]", filter["limit"])
-	fmt.Println("filter[page]", filter["page"])
+
 	if filter["limit"] != nil && filter["page"] != nil {
 		Limit, _ := strconv.Atoi(fmt.Sprint(filter["limit"]))
 		Page, _ := strconv.Atoi(fmt.Sprint(filter["page"]))
@@ -50,8 +44,6 @@ func (db *DBController) GetCollection(c *gin.Context) {
 	} else {
 		db.Database.Where(_where).Find(&posts)
 	}
-
-	// fmt.Println("posts:", posts)
 
 	c.JSON(http.StatusOK, gin.H{"results": &posts})
 }
@@ -83,19 +75,12 @@ func (db *DBController) GetCollectionById(c *gin.Context) {
 					_where["published"] = boolValue
 				}
 			}
-			if fmt.Sprint(obj.Id) == _type {
+			if fmt.Sprint(obj.Id) == _type { //ถ้ามีidตรงกันให้แสดง
 				_where["id"] = _type
 			}
 		}
-		fmt.Println("_where[title]::", _where["title"])
-		fmt.Println("_where[content]::", _where["content"])
-		fmt.Println("_where[created_at]::", _where["created_at"])
-		fmt.Println("_where[published]::", _where["published"])
-		fmt.Println("_where[id]::", _where["id"])
 	}
-	// if _where != nil {
-	// 	db.UpdateCollectionByViewCount(c)
-	// }
+
 	db.UpdateCollectionByViewCount(c)
 	if _where["id"] != nil {
 		db.GetCollectionByUUID(c)
@@ -120,10 +105,7 @@ func (db *DBController) GetCollectionById(c *gin.Context) {
 			dataPosts.Published = posts[0].Published
 		}
 		if &posts[0].ViewCount != nil {
-			ViewCount := 0
-			ViewCount = posts[0].ViewCount + 1
-			// db.UpdateCollectionByViewCount(c)
-			dataPosts.ViewCount = ViewCount
+			dataPosts.ViewCount = posts[0].ViewCount
 		}
 		if &posts[0].CreatedAt != nil {
 			dataPosts.CreatedAt = posts[0].CreatedAt
@@ -132,36 +114,17 @@ func (db *DBController) GetCollectionById(c *gin.Context) {
 			dataPosts.UpdatedAt = posts[0].UpdatedAt
 		}
 
-		fmt.Println("_where", _where)
 		if _where["title"] != nil || _where["content"] != nil || _where["id"] != nil {
 			c.JSON(http.StatusOK, &dataPosts)
-			fmt.Println("dataPosts.Published:", dataPosts.Published)
 			if dataPosts.Published == true {
+				//ถ้าPublished เป็น true  ViewCount +1 ทุกครั้งที่กดดู
 				db.UpdateCollectionByViewCount(c)
 			}
-			// db.UpdateCollectionByViewCount(c)
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 		}
 	}
 }
-
-// // GET BY Limit
-// func (db *DBController) GetCollectionByLimit(c *gin.Context) {
-// 	_type := c.Param("id")
-
-// 	var posts []models.Posts
-
-// 	Limit, _ := strconv.Atoi(fmt.Sprint(_type))
-// 	db.Database.Limit(Limit).Find(&posts)
-// 	fmt.Println("db.Database.Limit(Limit).Find(&posts)", db.Database.Limit(Limit).Find(&posts))
-// 	if len(posts) > 0 {
-// 		c.JSON(http.StatusOK, &posts)
-// 	} else {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-// 	}
-
-// }
 
 // GET BY UUID
 func (db *DBController) GetCollectionByUUID(c *gin.Context) {
@@ -255,12 +218,6 @@ func (db *DBController) GetCollectionByPublished(c *gin.Context) {
 			if obj.Published == boolValue { //ถ้ามีtitleตรงกันให้แสดง
 				_where["published"] = boolValue
 			}
-			// CreatedAt := strings.Split(fmt.Sprint(obj.CreatedAt), "T")
-			// // // fmt.Println("CreatedAt::",CreatedAt[0])
-			// Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
-			// if Date[0] == _type { //ถ้ามีtitleตรงกันให้แสดง
-			// 	_where["created_at"] = _type
-			// }
 
 		}
 	}
@@ -325,11 +282,6 @@ func (db *DBController) UpdateCollectionByViewCount(c *gin.Context) {
 // POST
 func (db *DBController) CreateCollection(c *gin.Context) {
 	var data models.Posts
-	// err := c.ShouldBind(&data)
-	//random Created id
-	// myUUID := uuid.New()
-	// // fmt.Println("myUUID::", myUUID.String())
-	// data.Id = myUUID
 
 	if err := c.ShouldBindJSON(&data); err != nil {
 		fmt.Println("err::", err)
@@ -384,90 +336,6 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 
 }
 
-// // Update
-// func (db *DBController) UpdateCollection(c *gin.Context) {
-// 	_type := c.Param("id")
-// 	_where := map[string]interface{}{}
-// 	var data models.Posts
-
-// 	if err := c.ShouldBindJSON(&data); err != nil {
-// 		fmt.Println("err::", err)
-// 		// logging.Logger(setting.LogLevelSetting.Error, err)
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-// 		return
-// 	}
-
-// 	if data.Title != "" {
-
-// 		var database []models.Posts
-
-// 		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
-// 		for _, obj := range database {
-// 			Id := fmt.Sprint(obj.Id)
-// 			if Id == _type { //
-// 				_where["id"] = _type
-
-// 				// if &data.Id != nil {
-// 				// 	data.Id = obj.Id
-// 				// }
-// 				// if &data.Title != nil {
-// 				// 	data.Title = obj.Title
-// 				// }
-// 				// if &data.Content != nil {
-// 				// 	data.Content = obj.Content
-// 				// }
-// 				// if &data.Published != nil {
-// 				// 	data.Published = obj.Published
-// 				// }
-// 				// if &data.ViewCount != nil {
-// 				// 	data.ViewCount = obj.ViewCount
-// 				// }
-// 				// if &data.CreatedAt != nil {
-// 				// 	data.CreatedAt = obj.CreatedAt
-// 				// }
-// 				// if &data.CreatedAt != nil {
-// 				// 	data.UpdatedAt = obj.UpdatedAt
-// 				// }
-// 				// }
-// 			}
-// 		}
-// 		fmt.Println("_type:::", _type)
-// 		fmt.Println("where:::", _where["id"])
-// 		if _where["id"] == _type {
-// 			db.Database.Model(&database).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published}).Where(_where)
-// 			// var Posts models.Posts
-
-// 			// if &data.Id != nil {
-// 			// 	Posts.Id = data.Id
-// 			// }
-// 			// if &data.Title != nil {
-// 			// 	Posts.Title = data.Title
-// 			// }
-// 			// if &data.Content != nil {
-// 			// 	Posts.Content = data.Content
-// 			// }
-// 			// if &data.Published != nil {
-// 			// 	Posts.Published = data.Published
-// 			// }
-// 			// if &data.ViewCount != nil {
-// 			// 	Posts.ViewCount = data.ViewCount
-// 			// }
-// 			// if &data.CreatedAt != nil {
-// 			// 	Posts.CreatedAt = data.CreatedAt
-// 			// }
-// 			// if &data.CreatedAt != nil {
-// 			// 	Posts.UpdatedAt = data.UpdatedAt
-// 			// }
-// 			c.JSON(http.StatusCreated, &data)
-// 		} else {
-// 			c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-// 		}
-// 		// //////////////////////////////////
-
-// 		// dataPost.Posts = append(dataPost.Posts, Posts)
-// 	}
-
-// }
 
 // DELETE BY UUID
 func (db *DBController) DeleteCollection(c *gin.Context) {
@@ -554,7 +422,6 @@ func (db *DBController) UpdateCollection(c *gin.Context) {
 			}
 		}
 		if _where["id"] == _type {
-			// db.Database.Table("posts").Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published}).Where(_where)
 			db.Database.Model(&database).Where(_where).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published})
 			c.JSON(http.StatusCreated, &data)
 		} 

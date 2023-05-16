@@ -18,18 +18,29 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	
+// postgres: //postgres:123456@localhost:54321/blog?sslmode=disable
 
+// 	DB_HOST = localhost
+// 	DB_NAME = blog
+// 	DB_USER = postgres
+// 	DB_PORT = 54321
+// 	DB_PASSWORD = 123456
 
-	DB_HOST := "localhost"
-	DB_NAME := "blog"
-	DB_USER := "postgres"
-	DB_PORT := "54321"
-	DB_PASSWORD := "123456"
+	// DB_HOST := "@dev.opensource-technology.com"
+	// DB_NAME := "blog"
+	// DB_USER := "posts"
+	// DB_PORT := "5523"
+	// DB_PASSWORD := "38S2GPNZut4Tmvan"
 	PORT := "8080"
 
-	fmt.Println(":PORT:",PORT)
-	psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", DB_HOST, DB_USER, DB_NAME, DB_PORT, DB_PASSWORD)
+	// fmt.Println(":PORT:", PORT)
+	// psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", DB_HOST, DB_USER, DB_NAME, DB_PORT, DB_PASSWORD)
+	// fmt.Println(":host:", "host=%s",DB_HOST)
+	// fmt.Println(":user:", "user=%s",DB_USER)
+	// fmt.Println(":dbname:", "dbname=%s",DB_NAME)
+	// fmt.Println(":port:", "port=%s",DB_PORT)
+	// fmt.Println(":password:", "password=%s",DB_PASSWORD)
+	psqlInfo := "postgres://posts:38S2GPNZut4Tmvan@dev.opensource-technology.com:5523/posts?sslmode=disable"
 	db, err := gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
 		SkipDefaultTransaction: true,
 	})
