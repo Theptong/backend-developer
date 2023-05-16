@@ -337,51 +337,58 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 		return
 	}
-	if data.Title != ""{
+
+	if data.Title != "" {
 		db.Database.Select("title", "content", "published").Create(&data)
 		// db.Database.Create(&data)
-	var dataPost models.ListPosts
-	var Posts models.Posts
-	
-	if &data.Id != nil {
-		Posts.Id = data.Id
-	}
-	if &data.Title != nil {
-		Posts.Title = data.Title
-	}
-	if &data.Content != nil {
-		Posts.Content = data.Content
-	}
-	if &data.Published != nil {
-		Posts.Published = data.Published
-	}
-	if &data.ViewCount != nil {
-		Posts.ViewCount = data.ViewCount
-	}
-	if &data.CreatedAt != nil {
-		Posts.CreatedAt = data.CreatedAt
-	}
-	if &data.CreatedAt != nil {
-		Posts.UpdatedAt = data.UpdatedAt
-	}
-	dataPost.Posts = append(dataPost.Posts, Posts)
+		////////////////////////////////////
+		_where := map[string]interface{}{}
+		var database []models.Posts
+		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
+		ObJ := database[len(database)-1]
+		//ไปดึงก้อนข้อมูลจาก ฐาน เอา ลิชล่างสุดที่พึ่งสร้าง เอาเฉพาะ ค่า ID
+		//กรณีถ้าไม่ไปดึง ค่า ID จะเป็น 00000000-0000-0000-0000-000000000000
+		//////////////////////////////////
+		var dataPost models.ListPosts
+		var Posts models.Posts
 
-	if len(dataPost.Posts) > 0 {
-		c.JSON(http.StatusCreated, &dataPost)
-	}
-	}else{
+		if &data.Id != nil {
+			Posts.Id = ObJ.Id
+		}
+		if &data.Title != nil {
+			Posts.Title = data.Title
+		}
+		if &data.Content != nil {
+			Posts.Content = data.Content
+		}
+		if &data.Published != nil {
+			Posts.Published = data.Published
+		}
+		if &data.ViewCount != nil {
+			Posts.ViewCount = data.ViewCount
+		}
+		if &data.CreatedAt != nil {
+			Posts.CreatedAt = data.CreatedAt
+		}
+		if &data.CreatedAt != nil {
+			Posts.UpdatedAt = data.UpdatedAt
+		}
+		dataPost.Posts = append(dataPost.Posts, Posts)
+
+		if len(dataPost.Posts) > 0 {
+			c.JSON(http.StatusCreated, &dataPost)
+		}
+	} else {
 		c.JSON(http.StatusCreated, make([]models.ListPosts, 0))
 	}
 
 }
-// // POST
-// func (db *DBController) CreateCollection(c *gin.Context) {
+
+// // Update
+// func (db *DBController) UpdateCollection(c *gin.Context) {
+// 	_type := c.Param("id")
+// 	_where := map[string]interface{}{}
 // 	var data models.Posts
-// 	// err := c.ShouldBind(&data)
-// 	//random Created id
-// 	myUUID := uuid.New()
-// 	// fmt.Println("myUUID::", myUUID.String())
-// 	data.Id = myUUID
 
 // 	if err := c.ShouldBindJSON(&data); err != nil {
 // 		fmt.Println("err::", err)
@@ -390,75 +397,76 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 // 		return
 // 	}
 
-// 	db.Database.Create(&data)
-// 	var dataPost models.ListPosts
+// 	if data.Title != "" {
 
-// 	dataPost.Posts = append(dataPost.Posts, data)
+// 		var database []models.Posts
 
-// 	if len(dataPost.Posts) > 0 {
-// 		c.JSON(http.StatusCreated, &dataPost)
-// 	} else {
-// 		c.JSON(http.StatusCreated, make([]models.ListPosts, 0))
-// 	}
-
-// }
-
-// func (db *DBController) UpdateCollection(c *gin.Context) {
-// 	_type := c.Param("id")
-// 	_where := map[string]interface{}{}
-// 	var posts []models.Posts
-// 	var dataPosts models.Posts
-// 	if _type != "" {
-// 		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-// 		//SELECT * from posts			^^^
-// 		for _, obj := range posts {
-
+// 		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
+// 		for _, obj := range database {
 // 			Id := fmt.Sprint(obj.Id)
-// 			if Id == _type { //ถ้ามีtitleตรงกันให้แสดง
-// 				if obj.Title == _type { //ถ้ามีtitleตรงกันให้แสดง
-// 					_where["title"] = _type
-// 				} else if obj.Content == _type { //ถ้ามีcontentตรงกันให้แสดง
-// 					_where["content"] = _type
-// 				} else if fmt.Sprint(obj.Id) == _type {
-// 					_where["id"] = _type
-// 				}
-// 				if &obj.Id != nil {
-// 					dataPosts.Id = obj.Id
-// 				}
-// 				if &obj.Title != nil {
-// 					dataPosts.Title = obj.Title
-// 				}
-// 				if &obj.Content != nil {
-// 					dataPosts.Content = obj.Content
-// 				}
-// 				if &obj.Published != nil {
-// 					dataPosts.Published = obj.Published
-// 				}
-// 				if &obj.ViewCount != nil {
-// 					dataPosts.ViewCount = obj.ViewCount
-// 				}
-// 				if &obj.CreatedAt != nil {
-// 					dataPosts.CreatedAt = obj.CreatedAt
-// 				}
-// 				if &obj.CreatedAt != nil {
-// 					dataPosts.CreatedAt = obj.CreatedAt
-// 				}
+// 			if Id == _type { //
+// 				_where["id"] = _type
 
+// 				// if &data.Id != nil {
+// 				// 	data.Id = obj.Id
+// 				// }
+// 				// if &data.Title != nil {
+// 				// 	data.Title = obj.Title
+// 				// }
+// 				// if &data.Content != nil {
+// 				// 	data.Content = obj.Content
+// 				// }
+// 				// if &data.Published != nil {
+// 				// 	data.Published = obj.Published
+// 				// }
+// 				// if &data.ViewCount != nil {
+// 				// 	data.ViewCount = obj.ViewCount
+// 				// }
+// 				// if &data.CreatedAt != nil {
+// 				// 	data.CreatedAt = obj.CreatedAt
+// 				// }
+// 				// if &data.CreatedAt != nil {
+// 				// 	data.UpdatedAt = obj.UpdatedAt
+// 				// }
+// 				// }
 // 			}
-
 // 		}
+// 		fmt.Println("_type:::", _type)
+// 		fmt.Println("where:::", _where["id"])
+// 		if _where["id"] == _type {
+// 			db.Database.Model(&database).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published}).Where(_where)
+// 			// var Posts models.Posts
+
+// 			// if &data.Id != nil {
+// 			// 	Posts.Id = data.Id
+// 			// }
+// 			// if &data.Title != nil {
+// 			// 	Posts.Title = data.Title
+// 			// }
+// 			// if &data.Content != nil {
+// 			// 	Posts.Content = data.Content
+// 			// }
+// 			// if &data.Published != nil {
+// 			// 	Posts.Published = data.Published
+// 			// }
+// 			// if &data.ViewCount != nil {
+// 			// 	Posts.ViewCount = data.ViewCount
+// 			// }
+// 			// if &data.CreatedAt != nil {
+// 			// 	Posts.CreatedAt = data.CreatedAt
+// 			// }
+// 			// if &data.CreatedAt != nil {
+// 			// 	Posts.UpdatedAt = data.UpdatedAt
+// 			// }
+// 			c.JSON(http.StatusCreated, &data)
+// 		} else {
+// 			c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+// 		}
+// 		// //////////////////////////////////
+
+// 		// dataPost.Posts = append(dataPost.Posts, Posts)
 // 	}
-// 	// if _where["id"] != nil {
-// 	// 	db.GetCollectionByUUID(c)
-// 	// }
-// 	db.Database.Where(_where).Find(&posts).Update(_type,dataPosts.Published)
-// 	fmt.Println("db.Database::",db.Database)
-// 	// db.Database.Where(_where).Update(&dataPosts)
-// 	if _where["id"] != nil {
-// 		c.JSON(http.StatusOK,dataPosts)
-// 	} else {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-// 	}
+
 // }
 
 // DELETE BY UUID
@@ -510,4 +518,48 @@ func (db *DBController) DeleteCollection(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
+}
+// Update
+func (db *DBController) UpdateCollection(c *gin.Context) {
+	_type := c.Param("id")
+	_where := map[string]interface{}{}
+	var data models.Posts
+
+	if err := c.ShouldBindJSON(&data); err != nil {
+		fmt.Println("err::", err)
+		// logging.Logger(setting.LogLevelSetting.Error, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+		return
+	}
+
+	if data.Title != "" {
+		var database []models.Posts
+
+		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
+		for _, obj := range database {
+			Id := fmt.Sprint(obj.Id)
+			if Id == _type { //
+				_where["id"] = _type
+
+				if &data.Id != nil {
+					data.Id = obj.Id
+				}
+				if &data.CreatedAt != nil {
+					data.CreatedAt = obj.CreatedAt
+				}
+				if &data.CreatedAt != nil {
+					data.UpdatedAt = obj.UpdatedAt
+				}
+
+			}
+		}
+		if _where["id"] == _type {
+			// db.Database.Table("posts").Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published}).Where(_where)
+			db.Database.Model(&database).Where(_where).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published})
+			c.JSON(http.StatusCreated, &data)
+		} 
+	}else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+	}
+
 }
