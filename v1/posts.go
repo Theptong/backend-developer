@@ -64,8 +64,9 @@ func (db *DBController) GetCollection(c *gin.Context) {
 		dataList.Posts = append(dataList.Posts, posts...)
 		dataList.Count = len(posts)
 		dataList.Limit = len(posts)
-		dataList.Page = 1
 		total := (dataList.Count / dataList.Limit)
+		dataList.Page = total
+		
 		// fmt.Println("total::",total)
 		remainder  := (dataList.Count % dataList.Limit)
 		// fmt.Println("totalpersen::",remainder)
