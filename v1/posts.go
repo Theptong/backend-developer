@@ -23,6 +23,9 @@ type DBController struct {
 func (db *DBController) GetCollection(c *gin.Context) {
 	_where := map[string]interface{}{}
 	var posts []models.Posts
+	var dataList models.ListPosts
+	db.Database.Where(_where).Find(&posts)
+	if len(posts) >0 {
 	filter := make(map[string]interface{})
 	if c.Request.URL.Query().Get("limit") != "" {
 		filter["limit"] = c.Request.URL.Query().Get("limit")
@@ -40,12 +43,42 @@ func (db *DBController) GetCollection(c *gin.Context) {
 		} else {
 			Offset = 0
 		}
+		db.Database.Where(_where).Find(&posts)
+		dataList.Count = len(posts)
 		db.Database.Limit(Limit).Offset(Offset).Find(&posts)
+
+		dataList.Posts = append(dataList.Posts, posts...)
+		dataList.Limit = Limit
+		dataList.Page = Page
+		total := (dataList.Count / dataList.Limit)
+
+		remainder  := (dataList.Count % dataList.Limit)
+		if remainder  == 0 {
+			dataList.TotalPage = total
+		} else {
+			dataList.TotalPage = total + 1
+		}
 	} else {
 		db.Database.Where(_where).Find(&posts)
+		
+		dataList.Posts = append(dataList.Posts, posts...)
+		dataList.Count = len(posts)
+		dataList.Limit = len(posts)
+		dataList.Page = 1
+		total := (dataList.Count / dataList.Limit)
+		// fmt.Println("total::",total)
+		remainder  := (dataList.Count % dataList.Limit)
+		// fmt.Println("totalpersen::",remainder)
+		if remainder  == 0 {
+			dataList.TotalPage = total
+		} else {
+			dataList.TotalPage = total + 1
+		}
 	}
-
-	c.JSON(http.StatusOK, gin.H{"results": &posts})
+		c.JSON(http.StatusOK,&dataList)
+	} else {
+		c.JSON(http.StatusOK, make([]models.ListPosts, 0))
+	}
 }
 
 // GET BY ID
@@ -198,7 +231,7 @@ func (db *DBController) GetCollectionByTime(c *gin.Context) {
 	if _where["created_at"] != nil {
 		c.JSON(http.StatusOK, &posts)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Date is required"})
 	}
 }
 
@@ -226,7 +259,7 @@ func (db *DBController) GetCollectionByPublished(c *gin.Context) {
 	if _where["published"] != nil {
 		c.JSON(http.StatusOK, &posts)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+		c.JSON(http.StatusOK, make([]models.Posts, 0))
 	}
 }
 
@@ -301,7 +334,6 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 		//ไปดึงก้อนข้อมูลจาก ฐาน เอา ลิชล่างสุดที่พึ่งสร้าง เอาเฉพาะ ค่า ID
 		//กรณีถ้าไม่ไปดึง ค่า ID จะเป็น 00000000-0000-0000-0000-000000000000
 		//////////////////////////////////
-		var dataPost models.ListPosts
 		var Posts models.Posts
 
 		if &data.Id != nil {
@@ -325,17 +357,14 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 		if &data.CreatedAt != nil {
 			Posts.UpdatedAt = data.UpdatedAt
 		}
-		dataPost.Posts = append(dataPost.Posts, Posts)
 
-		if len(dataPost.Posts) > 0 {
-			c.JSON(http.StatusCreated, &dataPost)
-		}
+		c.JSON(http.StatusCreated, &Posts)
+		
 	} else {
-		c.JSON(http.StatusCreated, make([]models.ListPosts, 0))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 
 }
-
 
 // DELETE BY UUID
 func (db *DBController) DeleteCollection(c *gin.Context) {
@@ -387,6 +416,7 @@ func (db *DBController) DeleteCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 }
+
 // Update
 func (db *DBController) UpdateCollection(c *gin.Context) {
 	_type := c.Param("id")
@@ -424,8 +454,8 @@ func (db *DBController) UpdateCollection(c *gin.Context) {
 		if _where["id"] == _type {
 			db.Database.Model(&database).Where(_where).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published})
 			c.JSON(http.StatusCreated, &data)
-		} 
-	}else {
+		}
+	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 

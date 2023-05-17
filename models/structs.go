@@ -8,8 +8,8 @@ import (
 
 type ListPosts struct {
 	Posts     []Posts `json:"posts"`
-	Count     int   `json:"count"`
-	Limit     int   `json:"limit"`
+	Count     int   `json:"count"` 
+	Limit     int   `json:"limit"` 
 	Page      int   `json:"page"`
 	TotalPage int   `json:"total_page"`
 }
