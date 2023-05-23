@@ -2,321 +2,506 @@ package v1
 
 import (
 	"backend-test/models"
+	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	// "strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type DBController struct {
-	Database *gorm.DB
+	Database *sql.DB
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// GET
+func (db *DBController) QueryCollection(c *gin.Context) []models.Posts {
+	// _where := map[string]interface{}{}
+	var dataList []models.Posts
+	// var dataList models.ListPosts
+
+	rows, err := db.Database.Query(`SELECT * FROM posts`)
+	if err != nil {
+		panic(err)
+	}
+	// var list = []models.Posts{}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = append(dataList, posts)
+	}
+	return dataList
+}
+
+func (db *DBController) LimitCollection(Offset, Limit int) []models.Posts {
+	// _where := map[string]interface{}{}
+	var dataList []models.Posts
+	// var dataList models.ListPosts
+	sql := `SELECT * FROM posts OFFSET $1 LIMIT $2;`
+
+	rows, err := db.Database.Query(sql, Offset, Limit)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = append(dataList, posts)
+	}
+	return dataList
 }
 
 // GET
 func (db *DBController) GetCollection(c *gin.Context) {
-	_where := map[string]interface{}{}
-	var posts []models.Posts
+	// _where := map[string]interface{}{}
+	// var posts []models.Posts
 	var dataList models.ListPosts
-	db.Database.Where(_where).Find(&posts)
-	if len(posts) >0 {
-	filter := make(map[string]interface{})
-	if c.Request.URL.Query().Get("limit") != "" {
-		filter["limit"] = c.Request.URL.Query().Get("limit")
-	}
-	if c.Request.URL.Query().Get("page") != "" {
-		filter["page"] = c.Request.URL.Query().Get("page")
-	}
 
-	if filter["limit"] != nil && filter["page"] != nil {
-		Limit, _ := strconv.Atoi(fmt.Sprint(filter["limit"]))
-		Page, _ := strconv.Atoi(fmt.Sprint(filter["page"]))
-		Offset := 0
-		if Page >= 0 {
-			Offset = (Page - 1) * Limit
-		} else {
-			Offset = 0
-		}
-		db.Database.Where(_where).Find(&posts)
-		dataList.Count = len(posts)
-		db.Database.Limit(Limit).Offset(Offset).Find(&posts)
+	rows := db.QueryCollection(c)
 
-		dataList.Posts = append(dataList.Posts, posts...)
-		dataList.Limit = Limit
-		dataList.Page = Page
-		total := (dataList.Count / dataList.Limit)
+	if len(rows) > 0 {
+		filter := make(map[string]interface{})
+		if c.Request.URL.Query().Get("limit") != "" {
+			filter["limit"] = c.Request.URL.Query().Get("limit")
+		}
+		if c.Request.URL.Query().Get("page") != "" {
+			filter["page"] = c.Request.URL.Query().Get("page")
+		}
 
-		remainder  := (dataList.Count % dataList.Limit)
-		if remainder  == 0 {
-			dataList.TotalPage = total
+		if filter["limit"] != nil && filter["page"] != nil {
+			Limit, _ := strconv.Atoi(fmt.Sprint(filter["limit"]))
+			Page, _ := strconv.Atoi(fmt.Sprint(filter["page"]))
+			Offset := 0
+			if Page >= 0 {
+				Offset = (Page - 1) * Limit
+			} else {
+				Offset = 0
+			}
+
+			if Limit > 0 {
+				dataList.Count = len(rows)
+
+				rows := db.LimitCollection(Offset, Limit)
+				dataList.Posts = append(dataList.Posts, rows...)
+				dataList.Limit = Limit
+				dataList.Page = Page
+				total := (dataList.Count / dataList.Limit)
+
+				remainder := (dataList.Count % dataList.Limit)
+				if remainder == 0 {
+					dataList.TotalPage = total
+				} else {
+					dataList.TotalPage = total + 1
+				}
+			} else {
+				c.JSON(http.StatusOK, make([]models.ListPosts, 0))
+			}
+
 		} else {
-			dataList.TotalPage = total + 1
+			dataList.Posts = rows
+			dataList.Count = len(rows)
+			dataList.Limit = len(rows)
+			total := (dataList.Count / dataList.Limit)
+			dataList.Page = total
+			remainder := (dataList.Count % dataList.Limit)
+			if remainder == 0 {
+				dataList.TotalPage = total
+			} else {
+				dataList.TotalPage = total + 1
+			}
 		}
-	} else {
-		db.Database.Where(_where).Find(&posts)
-		
-		dataList.Posts = append(dataList.Posts, posts...)
-		dataList.Count = len(posts)
-		dataList.Limit = len(posts)
-		total := (dataList.Count / dataList.Limit)
-		dataList.Page = total
-		
-		// fmt.Println("total::",total)
-		remainder  := (dataList.Count % dataList.Limit)
-		// fmt.Println("totalpersen::",remainder)
-		if remainder  == 0 {
-			dataList.TotalPage = total
-		} else {
-			dataList.TotalPage = total + 1
-		}
-	}
-		c.JSON(http.StatusOK,&dataList)
+		c.JSON(http.StatusOK, &dataList)
 	} else {
 		c.JSON(http.StatusOK, make([]models.ListPosts, 0))
 	}
 }
 
-// GET BY ID
+// // GET BY ID
 func (db *DBController) GetCollectionById(c *gin.Context) {
 	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
-	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
-		for _, obj := range posts {
-			if obj.Title == _type { //ถ้ามีtitleตรงกันให้แสดง
-				_where["title"] = _type
-			} else if obj.Content == _type { //ถ้ามีcontentตรงกันให้แสดง
-				_where["content"] = _type
-			}
-			CreatedAt := strings.Split(fmt.Sprint(obj.CreatedAt), "T")
-			// // fmt.Println("CreatedAt::",CreatedAt[0])
-			Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
-			if Date[0] == _type { //ถ้ามีcreated_atตรงกันให้แสดง
-				_where["created_at"] = _type
-			}
+	filter := map[string]interface{}{}
 
-			if _type == "true" || _type == "false" {
-				boolValue, _ := strconv.ParseBool(_type)
-				if obj.Published == boolValue { //ถ้ามีpublishedตรงกันให้แสดง
-					_where["published"] = boolValue
-				}
+	var dataPost models.Posts
+	posts := db.QueryCollection(c)
+	for _, obj := range posts {
+
+		if fmt.Sprint(obj.Id) == _type {
+			if &obj.Id != nil {
+				filter["id"] = obj.Id
 			}
-			if fmt.Sprint(obj.Id) == _type { //ถ้ามีidตรงกันให้แสดง
-				_where["id"] = _type
+		} else if obj.Title == _type {
+			if &obj.Title != nil {
+				filter["title"] = obj.Title
 			}
+		} else if obj.Content == _type {
+			if &obj.Content != nil {
+				filter["content"] = obj.Content
+			}
+		}
+		if _type == "true" || _type == "false" {
+			boolValue, _ := strconv.ParseBool(_type)
+			if obj.Published == boolValue { //ถ้ามีpublishedตรงกันให้แสดง
+				filter["published"] = boolValue
+			}
+		}
+		CreatedAt := strings.Split(fmt.Sprint(obj.CreatedAt), "T")
+		// // fmt.Println("CreatedAt::",CreatedAt[0])
+		Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
+		if Date[0] == _type { //ถ้ามีcreated_atตรงกันให้แสดง
+			filter["created_at"] = _type
 		}
 	}
 
-	db.UpdateCollectionByViewCount(c)
-	if _where["id"] != nil {
-		db.GetCollectionByUUID(c)
-	} else if _where["created_at"] != nil {
-		db.GetCollectionByTime(c)
-	} else if _where["published"] != nil {
-		db.GetCollectionByPublished(c)
 
-	} else {
-		db.Database.Where(_where).Find(&posts)
-		var dataPosts models.Posts
-		if posts[0].Id != uuid.Nil {
-			dataPosts.Id = posts[0].Id
-		}
-		if posts[0].Title != "" {
-			dataPosts.Title = posts[0].Title
-		}
-		if posts[0].Content != "" {
-			dataPosts.Content = posts[0].Content
-		}
-		if &posts[0].Published != nil {
-			dataPosts.Published = posts[0].Published
-		}
-		if &posts[0].ViewCount != nil {
-			dataPosts.ViewCount = posts[0].ViewCount
-		}
-		if &posts[0].CreatedAt != nil {
-			dataPosts.CreatedAt = posts[0].CreatedAt
-		}
-		if &posts[0].UpdatedAt != nil {
-			dataPosts.UpdatedAt = posts[0].UpdatedAt
-		}
-
-		if _where["title"] != nil || _where["content"] != nil || _where["id"] != nil {
-			c.JSON(http.StatusOK, &dataPosts)
-			if dataPosts.Published == true {
-				//ถ้าPublished เป็น true  ViewCount +1 ทุกครั้งที่กดดู
-				db.UpdateCollectionByViewCount(c)
+	db.UpdateCollectionByViewCount(c) //นับจำนวนเข้าดู
+	if len(posts) > 0 {
+			if filter["id"] != nil {
+				QueryCollection := db.QueryCollectionById(_type)
+				dataPost = QueryCollection
+				c.JSON(http.StatusOK, dataPost)
+			} else if filter["title"] != nil {
+				QueryCollection := db.QueryCollectionByTitle(_type)
+				dataPost = QueryCollection
+				c.JSON(http.StatusOK, dataPost)
+			} else if filter["content"] != nil {
+				QueryCollection := db.QueryCollectionByContent(_type)
+				dataPost = QueryCollection
+				c.JSON(http.StatusOK, dataPost)
+			} else if filter["published"] != nil {
+				var dataPost []models.Posts
+				QueryCollection := db.QueryCollectionByPublished(_type)
+				dataPost = QueryCollection
+				c.JSON(http.StatusOK, dataPost)
+			} else if filter["created_at"] != nil {
+				var dataPost []models.Posts
+				QueryCollection := db.QueryCollectionByDate(_type)
+				dataPost = QueryCollection
+				c.JSON(http.StatusOK, dataPost)
 			}
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-		}
+	}else{
+		c.JSON(http.StatusOK, make([]models.Posts, 0))
 	}
 }
 
 // GET BY UUID
-func (db *DBController) GetCollectionByUUID(c *gin.Context) {
-	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
-	var dataPosts models.Posts
-	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
-		for _, obj := range posts {
+func (db *DBController) QueryCollectionById(id string) models.Posts {
+	var dataList models.Posts
+	sql := `SELECT * FROM posts where id = $1 `
 
-			Id := fmt.Sprint(obj.Id)
-			if Id == _type { //ถ้ามีtitleตรงกันให้แสดง
-				_where["id"] = _type
-				if &obj.Id != nil {
-					dataPosts.Id = obj.Id
-				}
-				if &obj.Title != nil {
-					dataPosts.Title = obj.Title
-				}
-				if &obj.Content != nil {
-					dataPosts.Content = obj.Content
-				}
-				if &obj.Published != nil {
-					dataPosts.Published = obj.Published
-				}
-				if &obj.ViewCount != nil {
-					dataPosts.ViewCount = obj.ViewCount
-				}
-				if &obj.CreatedAt != nil {
-					dataPosts.CreatedAt = obj.CreatedAt
-				}
-				if &obj.CreatedAt != nil {
-					dataPosts.UpdatedAt = obj.UpdatedAt
-				}
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
 
-			}
-
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
 		}
+		dataList = posts
 	}
-
-	if _where["id"] != nil {
-		c.JSON(http.StatusOK, &dataPosts)
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
-	}
+	return dataList
 }
 
 // GET BY Time
-func (db *DBController) GetCollectionByTime(c *gin.Context) {
-	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
-	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
-		for _, obj := range posts {
+func (db *DBController) QueryCollectionByDate(id string) []models.Posts {
 
-			CreatedAt := strings.Split(fmt.Sprint(obj.CreatedAt), "T")
-			// // fmt.Println("CreatedAt::",CreatedAt[0])
-			Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
-			if Date[0] == _type { //ถ้ามีtitleตรงกันให้แสดง
-				_where["created_at"] = _type
-			}
+	var dataList []models.Posts
 
+	sql := `SELECT * FROM posts where created_at > $1`
+
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
 		}
+		dataList = append(dataList, posts)
 	}
-	db.Database.Where("created_at > ?", _where["created_at"]).Find(&posts)
-
-	if _where["created_at"] != nil {
-		c.JSON(http.StatusOK, &posts)
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Date is required"})
-	}
+	return dataList
 }
 
-// GET BY published
-func (db *DBController) GetCollectionByPublished(c *gin.Context) {
-	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
-	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
-		for _, obj := range posts {
-			boolValue, err := strconv.ParseBool(_type)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if obj.Published == boolValue { //ถ้ามีtitleตรงกันให้แสดง
-				_where["published"] = boolValue
-			}
+// GET BY Title
+func (db *DBController) QueryCollectionByTitle(id string) models.Posts {
 
+	var dataList models.Posts
+
+	sql := `SELECT * FROM posts where title = $1`
+
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
 		}
+		dataList = posts
 	}
-	db.Database.Where(_where).Find(&posts)
+	return dataList
+}
 
-	if _where["published"] != nil {
-		c.JSON(http.StatusOK, &posts)
-	} else {
-		c.JSON(http.StatusOK, make([]models.Posts, 0))
+// GET BY Content
+func (db *DBController) QueryCollectionByContent(id string) models.Posts {
+
+	var dataList models.Posts
+
+	sql := `SELECT * FROM posts where content = $1`
+
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
 	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = posts
+	}
+	return dataList
+}
+
+// GET BY Published
+func (db *DBController) QueryCollectionByPublished(id string) []models.Posts {
+
+	var dataList []models.Posts
+
+	sql := `SELECT * FROM posts where published = $1`
+
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = append(dataList, posts)
+	}
+	return dataList
 }
 
 // Update view_count
 func (db *DBController) UpdateCollectionByViewCount(c *gin.Context) {
 	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
+
+	filter := map[string]interface{}{}
 	var dataPosts models.Posts
 	ViewCount := 0
 	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
-		for _, obj := range posts {
-			ViewCount = obj.ViewCount + 1
-			Id := fmt.Sprint(obj.Id)
-			if Id == _type { //ถ้ามีtitleตรงกันให้แสดง
-				if fmt.Sprint(obj.Id) == _type {
-					_where["id"] = _type
-					if obj.Published == true {
-						obj.ViewCount = ViewCount
-						if &obj.Id != nil {
-							dataPosts.Id = obj.Id
-						}
-						if &obj.Title != nil {
-							dataPosts.Title = obj.Title
-						}
-						if &obj.Content != nil {
-							dataPosts.Content = obj.Content
-						}
-						if &obj.Published != nil {
-							dataPosts.Published = obj.Published
-						}
-						if &obj.ViewCount != nil {
-							dataPosts.ViewCount = obj.ViewCount
-						}
-						if &obj.CreatedAt != nil {
-							dataPosts.CreatedAt = obj.CreatedAt
-						}
-						if &obj.CreatedAt != nil {
-							dataPosts.UpdatedAt = obj.UpdatedAt
-						}
+		posts := db.QueryCollection(c)
 
-						db.Database.Model(&dataPosts).Update("view_count", ViewCount).Where(_where)
-					}
+		for _, obj := range posts {
+			if fmt.Sprint(obj.Id) == _type {
+				ViewCount = obj.ViewCount + 1
+				if &obj.Id != nil {
+					filter["id"] = obj.Id
+				}
+				if obj.Published == true {
+					filter["published"] = obj.Published
 				}
 			}
-
+			if filter["id"] != nil {
+				if filter["published"] == true {
+					QueryCollection := db.QueryCollectionById(_type)
+					if &QueryCollection.Id != nil {
+						dataPosts.Id = QueryCollection.Id
+					}
+					if &QueryCollection.Title != nil {
+						dataPosts.Title = QueryCollection.Title
+					}
+					if &QueryCollection.Content != nil {
+						dataPosts.Content = QueryCollection.Content
+					}
+					if &QueryCollection.Published != nil {
+						dataPosts.Published = QueryCollection.Published
+					}
+					if &QueryCollection.ViewCount != nil {
+						dataPosts.ViewCount = ViewCount
+					}
+					if &QueryCollection.CreatedAt != nil {
+						dataPosts.CreatedAt = QueryCollection.CreatedAt
+					}
+					if &QueryCollection.CreatedAt != nil {
+						dataPosts.UpdatedAt = QueryCollection.UpdatedAt
+					}
+					db.QueryCollectionViewCount(ViewCount, _type)
+				}
+			}
 		}
 	}
+}
+
+func (db *DBController) QueryCollectionViewCount(ViewCount int, id string) models.Posts {
+
+	var dataList models.Posts
+
+	sql := `update posts
+	set view_count = $1
+	where id = $2`
+
+	rows, err := db.Database.Query(sql, ViewCount, id)
+
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = posts
+	}
+	return dataList
 }
 
 // POST
 func (db *DBController) CreateCollection(c *gin.Context) {
 	var data models.Posts
-
 	if err := c.ShouldBindJSON(&data); err != nil {
 		fmt.Println("err::", err)
 		// logging.Logger(setting.LogLevelSetting.Error, err)
@@ -325,12 +510,10 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 	}
 
 	if data.Title != "" {
-		db.Database.Select("title", "content", "published").Create(&data)
-		// db.Database.Create(&data)
-		////////////////////////////////////
-		_where := map[string]interface{}{}
-		var database []models.Posts
-		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
+
+		db.CreateNewCollection(data.Title, data.Content, data.Published)
+
+		database := db.QueryCollection(c)
 		ObJ := database[len(database)-1]
 		//ไปดึงก้อนข้อมูลจาก ฐาน เอา ลิชล่างสุดที่พึ่งสร้าง เอาเฉพาะ ค่า ID
 		//กรณีถ้าไม่ไปดึง ค่า ID จะเป็น 00000000-0000-0000-0000-000000000000
@@ -353,35 +536,69 @@ func (db *DBController) CreateCollection(c *gin.Context) {
 			Posts.ViewCount = data.ViewCount
 		}
 		if &data.CreatedAt != nil {
-			Posts.CreatedAt = data.CreatedAt
+			Posts.CreatedAt = ObJ.CreatedAt
 		}
 		if &data.CreatedAt != nil {
-			Posts.UpdatedAt = data.UpdatedAt
+			Posts.UpdatedAt = ObJ.UpdatedAt
 		}
 
 		c.JSON(http.StatusCreated, &Posts)
-		
+
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 
 }
+func (db *DBController) CreateNewCollection(title, content string, published bool) models.Posts {
+	var dataList models.Posts
+
+	sql := `INSERT INTO posts (title, content, published)
+	VALUES ($1, $2, $3)`
+
+	rows, err := db.Database.Query(sql, title, content, published)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = posts
+	}
+	return dataList
+}
 
 // DELETE BY UUID
 func (db *DBController) DeleteCollection(c *gin.Context) {
 	_type := c.Param("id")
-	_where := map[string]interface{}{}
-	var posts []models.Posts
+	filter := map[string]interface{}{}
+
 	var dataPosts models.Posts
+	posts := db.QueryCollection(c)
 	if _type != "" {
-		db.Database.Where(_where).Find(&posts) //เรียก ฐานข้อมูล
-		//SELECT * from posts			^^^
 		for _, obj := range posts {
 
 			Id := fmt.Sprint(obj.Id)
-			if Id == _type { //ถ้ามีtitleตรงกันให้แสดง
+			if Id == _type { //ถ้ามีidตรงกันให้แสดง
 				if fmt.Sprint(obj.Id) == _type {
-					_where["id"] = _type
+					filter["id"] = _type
 				}
 				if &obj.Id != nil {
 					dataPosts.Id = obj.Id
@@ -410,18 +627,54 @@ func (db *DBController) DeleteCollection(c *gin.Context) {
 		}
 	}
 
-	if _where["id"] != nil {
-		db.Database.Where(_where).Delete(&posts)
+	if filter["id"] != nil {
+		db.DeleteCollectionById(_type)
 		c.JSON(http.StatusOK, gin.H{"Delete": "UUID : " + fmt.Sprint(dataPosts.Id)})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 }
 
+func (db *DBController) DeleteCollectionById(id string) models.Posts {
+
+	var dataList models.Posts
+
+	sql := `delete from posts where id = $1`
+
+	rows, err := db.Database.Query(sql, id)
+	// db.Database.Query(.Limit)
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = posts
+	}
+	return dataList
+}
+
 // Update
 func (db *DBController) UpdateCollection(c *gin.Context) {
 	_type := c.Param("id")
-	_where := map[string]interface{}{}
+	filter := map[string]interface{}{}
 	var data models.Posts
 
 	if err := c.ShouldBindJSON(&data); err != nil {
@@ -432,16 +685,19 @@ func (db *DBController) UpdateCollection(c *gin.Context) {
 	}
 
 	if data.Title != "" {
-		var database []models.Posts
+		// var database []models.Posts
 
-		db.Database.Where(_where).Find(&database) //เรียก ฐานข้อมูล
+		database := db.QueryCollection(c)
 		for _, obj := range database {
 			Id := fmt.Sprint(obj.Id)
 			if Id == _type { //
-				_where["id"] = _type
+				filter["id"] = _type
 
 				if &data.Id != nil {
 					data.Id = obj.Id
+				}
+				if &data.ViewCount != nil {
+					data.ViewCount = obj.ViewCount
 				}
 				if &data.CreatedAt != nil {
 					data.CreatedAt = obj.CreatedAt
@@ -452,12 +708,50 @@ func (db *DBController) UpdateCollection(c *gin.Context) {
 
 			}
 		}
-		if _where["id"] == _type {
-			db.Database.Model(&database).Where(_where).Updates(map[string]interface{}{"title": data.Title, "content": data.Content, "published": data.Published})
+		if filter["id"] == _type {
+			db.QueryUpdateCollection(fmt.Sprint(filter["id"]), data.Title, data.Content, data.Published)
 			c.JSON(http.StatusCreated, &data)
 		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 	}
 
+}
+
+func (db *DBController) QueryUpdateCollection(id, title, content string, published bool) models.Posts {
+
+	var dataList models.Posts
+
+	sql := `update posts
+	set title = $2 , content = $3 , published = $4
+	where id = $1`
+
+	rows, err := db.Database.Query(sql, id, title, content, published)
+
+	if err != nil {
+		panic(err)
+	}
+	for rows.Next() {
+		var Id uuid.UUID
+		var Title string
+		var Content string
+		var Published bool
+		var ViewCount int
+		var CreatedAt time.Time
+		var UpdatedAt time.Time
+		err = rows.Scan(&Id, &Title, &Content, &Published, &ViewCount, &CreatedAt, &UpdatedAt)
+		checkErr(err)
+
+		posts := models.Posts{
+			Id:        Id,
+			Title:     Title,
+			Content:   Content,
+			Published: Published,
+			ViewCount: ViewCount,
+			CreatedAt: CreatedAt,
+			UpdatedAt: UpdatedAt,
+		}
+		dataList = posts
+	}
+	return dataList
 }
