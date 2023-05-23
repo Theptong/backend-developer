@@ -193,36 +193,40 @@ func (db *DBController) GetCollectionById(c *gin.Context) {
 		Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
 		if Date[0] == _type { //ถ้ามีcreated_atตรงกันให้แสดง
 			filter["created_at"] = _type
+		}else{
+			filter["created_at"] = _type
 		}
 	}
 
-
 	db.UpdateCollectionByViewCount(c) //นับจำนวนเข้าดู
 	if len(posts) > 0 {
-			if filter["id"] != nil {
-				QueryCollection := db.QueryCollectionById(_type)
-				dataPost = QueryCollection
-				c.JSON(http.StatusOK, dataPost)
-			} else if filter["title"] != nil {
-				QueryCollection := db.QueryCollectionByTitle(_type)
-				dataPost = QueryCollection
-				c.JSON(http.StatusOK, dataPost)
-			} else if filter["content"] != nil {
-				QueryCollection := db.QueryCollectionByContent(_type)
-				dataPost = QueryCollection
-				c.JSON(http.StatusOK, dataPost)
-			} else if filter["published"] != nil {
-				var dataPost []models.Posts
-				QueryCollection := db.QueryCollectionByPublished(_type)
-				dataPost = QueryCollection
-				c.JSON(http.StatusOK, dataPost)
-			} else if filter["created_at"] != nil {
-				var dataPost []models.Posts
-				QueryCollection := db.QueryCollectionByDate(_type)
-				dataPost = QueryCollection
-				c.JSON(http.StatusOK, dataPost)
-			}
-	}else{
+		if filter["id"] != nil {
+			QueryCollection := db.QueryCollectionById(_type)
+			dataPost = QueryCollection
+			c.JSON(http.StatusOK, dataPost)
+		} else if filter["title"] != nil {
+			QueryCollection := db.QueryCollectionByTitle(_type)
+			dataPost = QueryCollection
+			c.JSON(http.StatusOK, dataPost)
+		} else if filter["content"] != nil {
+			QueryCollection := db.QueryCollectionByContent(_type)
+			dataPost = QueryCollection
+			c.JSON(http.StatusOK, dataPost)
+		} else if filter["published"] != nil {
+			var dataPost []models.Posts
+			QueryCollection := db.QueryCollectionByPublished(_type)
+			dataPost = QueryCollection
+			c.JSON(http.StatusOK, dataPost)
+		} else if filter["created_at"] != nil {
+			var dataPost []models.Posts
+			timeNow := time.Now().AddDate(0,0,1)
+			CreatedAt := strings.Split(fmt.Sprint(timeNow), "T")
+			Date := strings.Split(fmt.Sprint(CreatedAt[0]), " ")
+			QueryCollection := db.QueryCollectionByDate(_type,fmt.Sprint(Date[0]))
+			dataPost = QueryCollection
+			c.JSON(http.StatusOK, dataPost)
+		}
+	} else {
 		c.JSON(http.StatusOK, make([]models.Posts, 0))
 	}
 }
@@ -263,13 +267,13 @@ func (db *DBController) QueryCollectionById(id string) models.Posts {
 }
 
 // GET BY Time
-func (db *DBController) QueryCollectionByDate(id string) []models.Posts {
+func (db *DBController) QueryCollectionByDate(id string,today string) []models.Posts {
 
 	var dataList []models.Posts
+	// sql := `SELECT * FROM posts where created_at > $1
+	sql := `SELECT * FROM posts where created_at between $1 and $2`
 
-	sql := `SELECT * FROM posts where created_at > $1`
-
-	rows, err := db.Database.Query(sql, id)
+	rows, err := db.Database.Query(sql, id, today)
 	// db.Database.Query(.Limit)
 	if err != nil {
 		panic(err)
